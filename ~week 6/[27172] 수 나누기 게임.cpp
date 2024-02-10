@@ -1,3 +1,5 @@
+// idea: sieve
+
 #include <bits/stdc++.h>
 using namespace std;
 #define MAX_NUM 1000001
