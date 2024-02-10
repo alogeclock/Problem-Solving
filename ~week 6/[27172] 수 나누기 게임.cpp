@@ -1,4 +1,5 @@
 // idea: sieve
+// idea: test to github
 
 #include <bits/stdc++.h>
 using namespace std;
