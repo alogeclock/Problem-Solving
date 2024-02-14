@@ -1,4 +1,3 @@
-
 // idea: difference of dijkstra, bellman-ford
 
 // dijkstra(priority_queue + BFS, 모든 vertex 방문할 때까지 최단거리 배열 갱신)
