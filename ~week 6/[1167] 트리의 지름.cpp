@@ -1,7 +1,11 @@
+// idea: bfs
+
+// 1967번과 동일
+// 트리의 지름: '임의의 노드에서 가장 먼' 노드에서 '가장 먼' 노드 간의 거리
 
 #include <bits/stdc++.h>
 using namespace std;
-#define MAX_NODES 10001
+#define MAX_NODES 100005
 
 typedef struct Edge {
   int next, weight;
@@ -33,9 +37,7 @@ Result bfs(int startNode) {
     }
     q.pop();
 
-    for (int i = 0; i < g[curNode].size(); i++) {
-      int nextNode = g[curNode][i].first;
-      int nextWeight = g[curNode][i].second;
+    for (auto [nextNode, nextWeight] : g[curNode]) {
       if (!vst[nextNode]) {  // 연결관계 존재, 방문한 노드 X
         vst[nextNode] = 1;
         q.push({nextNode, curWeight + nextWeight});
@@ -59,11 +61,15 @@ int main() {
   cin >> N;
 
   // tree 삽입
-  int u, v, w;
-  for (int i = 0; i < N - 1; i++) {
-    cin >> u >> v >> w;
-    g[v].push_back({u, w});
-    g[u].push_back({v, w});
+  int start, next, weight;
+  for (int i = 0; i < N; i++) {
+    cin >> start;  // 정점의 값
+    while (true) {
+      cin >> next;
+      if (next == -1) break;
+      cin >> weight;
+      g[start].push_back({next, weight});
+    }
   }
 
   // 임의의 점에서 가장 먼 점으로 bfs()
