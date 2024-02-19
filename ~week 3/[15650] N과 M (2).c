@@ -1,7 +1,7 @@
 #include <stdio.h>
 
 int main() {
-  int N, M, end;
+  int N, M;
   int arr[9] = {0, 1, 2, 3, 4, 5, 6, 7, 8};
   int last = 0;
   scanf("%d %d", &N, &M);
@@ -20,8 +20,7 @@ int main() {
     }
     printf("\n");
 
-    if (arr[1] == N - M + 1)
-      last = 1;
+    if (arr[1] == N - M + 1) last = 1;
 
     // 가리키는 위치를 변화시켜 가면서 새로운 수열 탐색
     arr[idx]++;
