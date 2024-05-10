@@ -1,3 +1,5 @@
+// idea: bfs + C style implementation
+
 #include <bits/stdc++.h>
 using namespace std;
 #define MAX_NUM ((int)1e6 + 5)

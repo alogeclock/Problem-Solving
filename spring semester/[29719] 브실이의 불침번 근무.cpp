@@ -10,7 +10,7 @@ int main() {
   ios_base::sync_with_stdio(0);
   cin.tie(0), cout.tie(0);
 
-  int N, M;  // N일, M명의 후보
+  int N, M; // N일, M명의 후보
   cin >> N >> M;
 
   ll a = 1, b = 1;
