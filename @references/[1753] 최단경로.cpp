@@ -1,35 +1,36 @@
-// idea: dijkstra
-
 #include <bits/stdc++.h>
-#define MAX_VERTICES 20001
-#define pii pair<int, int>
 using namespace std;
+#define ll long long
+#define pll pair<ll, ll>
+#define INF 0x3f3f3f3f
+#define LINF 0x3f3f3f3f3f3f3f3f
+#define PINF 1000000007
 
-vector<vector<pii>> g(MAX_VERTICES);
-vector<int> dst(MAX_VERTICES, 1e9);
+ll N, M, s, e;
+ll dst[1010];
+vector<pll> g[1010];
 
 int main() {
   ios_base::sync_with_stdio(0);
   cin.tie(0);
   cout.tie(0);
 
-  int V, E, start;
-  cin >> V >> E >> start;
-
-  for (int i = 0; i < E; i++) {
-    int u, v, w;
+  cin >> N >> M;
+  for (int i = 0; i < M; i++) {
+    ll u, v, w;
     cin >> u >> v >> w;
     g[u].push_back({v, w});
   }
 
-  priority_queue<pii, vector<pii>, greater<pii>> pq;
-  pq.push({0, start});
-  dst[start] = 0;
+  memset(dst, 0x3f, sizeof(dst));
+  priority_queue<pll, vector<pll>, greater<pll>> pq;
+  pq.push({0, s});
+  dst[s] = 0;
 
   while (pq.size()) {
-    auto [hdst, here] = pq.top(); // 거리 기준 우선순위 큐
+    auto [hdst, here] = pq.top();
     pq.pop();
-    if (hdst > dst[here]) continue;
+    if (dst[here] < hdst) continue;
     for (auto [next, ndst] : g[here]) {
       ndst += hdst;
       if (dst[next] > ndst) {
@@ -39,12 +40,5 @@ int main() {
     }
   }
 
-  for (int i = 1; i <= V; i++) {
-    if (dst[i] == 1e9)
-      cout << "INF\n";
-    else
-      cout << dst[i] << '\n';
-  }
-
-  return 0;
+  cout << dst[e];
 }
