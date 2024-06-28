@@ -13,11 +13,9 @@ int N, S, cnt, arr[20];
 void dfs(int k, vector<int> seq) {
   if (k >= N) {
     if (seq.empty()) return;
-
     int sum = 0;
     for (auto i : seq) sum += arr[i];
     if (sum == S) cnt++;
-    
     return;
   }
   
