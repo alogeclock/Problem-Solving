@@ -19,9 +19,9 @@ int main() {
     for (auto i : s) alphabet[i - 'a']++;
     for (auto i : t) alphabet[i - 'a']--;
     
-    int impossible_flag = 0;
-    for (auto i : alphabet) { impossible_flag |= i; } // !0이 하나라도 있으면 set
-    if (impossible_flag) cout << "Impossible\n";
+    int impossible = 0;
+    for (auto i : alphabet) { impossible |= i; } // !0이 하나라도 있으면 set
+    if (impossible) cout << "Impossible\n";
     else cout << "Possible\n";
   }
   return 0;
