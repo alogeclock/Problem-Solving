@@ -24,5 +24,6 @@ int main() {
     if (impossible) cout << "Impossible\n";
     else cout << "Possible\n";
   }
+  
   return 0;
 }
