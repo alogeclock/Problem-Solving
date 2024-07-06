@@ -15,12 +15,11 @@ int main() {
   ll N;
   while (cin >> N) {
     if (!N) break;
-    vector<ll> height, vst;
+    vector<ll> height;
 
     for (ll i = 0; i < N; i++) {
       ll value; cin >> value;
       height.push_back(value);
-      vst.push_back(LINF);
     }
     height.push_back(-1); // 최종적으로 모든 값을 출력하기 위한 값
 
