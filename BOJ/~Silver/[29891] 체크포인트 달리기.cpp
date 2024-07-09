@@ -26,10 +26,10 @@ int main() {
   
   ll ans = 0;
 
-  for (ll i = pcnt - 1; i >= 0; i -= K) {
+  for (ll i = pcnt; i >= 0; i -= K) {
     ans += 2 * arr[i];
   }
-  for (ll i = ncnt - 1; i >= 0; i -= K) {
+  for (ll i = ncnt; i >= 0; i -= K) {
     ans += 2 * neg_arr[i];
   }
   cout << ans;
