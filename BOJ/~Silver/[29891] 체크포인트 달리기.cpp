@@ -6,31 +6,23 @@ using namespace std;
 #define LINF 0x3f3f3f3f3f3f3f3fLL
 #define PINF 1000000007
 
-ll neg_arr[200200], arr[200200];
+ll N, K, ans;
 
 int main() {
   ios_base::sync_with_stdio(0);
   cin.tie(0); cout.tie(0);
 
   ll N, K; cin >> N >> K;
-  ll pcnt = 0, ncnt = 0; // positive_count, negative_count
-
+  vector<ll> pv, nv; // positive_vector, negative_vector
   for (ll i = 0; i < N; i++) {
-    ll input; cin >> input;
-    if (input < 0) neg_arr[ncnt++] = -input; // 양수로 저장
-    else arr[pcnt++] = input;
+    ll x; cin >> x;
+    (x < 0) ? nv.push_back(-x) : pv.push_back(x);
   }
-
-  sort(arr, arr + pcnt); // 오름차순 정렬
-  sort(neg_arr, neg_arr + ncnt);
   
-  ll ans = 0;
+  sort(pv.begin(), pv.end()); sort(nv.begin(), nv.end());
 
-  for (ll i = pcnt; i >= 0; i -= K) {
-    ans += 2 * arr[i];
-  }
-  for (ll i = ncnt; i >= 0; i -= K) {
-    ans += 2 * neg_arr[i];
-  }
+  for (ll i = pv.size() - 1; i >= 0; i -= K) ans += 2 * pv[i];
+  for (ll i = nv.size() - 1; i >= 0; i -= K) ans += 2 * nv[i];
+
   cout << ans;
 }
