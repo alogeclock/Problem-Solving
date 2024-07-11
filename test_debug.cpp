@@ -1,23 +1,10 @@
-// idea: bfs
+// idea: bfs, graph dp
 
-/* 
-다리: 한 섬의 가장자리를 시작점으로, 다른 섬의 가장자리를 끝점으로 하는 경로
-관찰 1) brute-force: 모든 섬의 가장자리에 대해 다른 점까지의 이동거리 계산
-관찰 2) 내 섬이 아닌 다른 육지 블록에 대한 최단 거리를 탐색
-
-→ 도달한 블록이 내 섬이 아니라는 사실을 알 수 있어야 함, vst 맵으로 구현 가능
-
-구현 1: brute-force
-1) vst[] 배열을 통해 섬의 영역마다 섬 번호를 기록함
-2) 한 점에 대해 모든 다른 점의 최단 거리를 구함 → O(N^4) = 1억 회
-3) 모든 최단 거리 맵을 탐색, 
-  if (육지 블록 && 내 섬이 아님) ans = min(ans, 최단 거리 맵[r][c])
-
-→ 시간 복잡도도 간당간당하고, 메모리만 400MB가 필요
-
-구현 2: 가장자리 블록만 저장
-1) 육지 블록마다 4방향을 확인해서 맵에서 가장자리 블록만 따로 vector에 삽입
-2) vector에 삽입된 블록에 대해서만 최단 거리 탐색
+/*
+1) 벽을 부수는 것은 낮, 밤에는 머물러 있을 수밖에 없는 경우가 존재
+2) 머물러 있을 때가 최단 거리일 수 있다는 것은, vst 맵에 값을 저장할 수 없음을 의미
+3) 튜플은 이동할 때 자신의 이동 거리를 저장하고 있어야 함
+4) 낮과 밤의 행동을 구분, 밤에는 머무르기를 시도할 수 있지만, 낮에는 불가능
 */
 
 #include <bits/stdc++.h>
@@ -27,74 +14,59 @@ using namespace std;
 #define INF 0x3f3f3f3f
 #define LINF 0x3f3f3f3f3f3f3f3fLL
 #define PINF 1000000007
+#define NIGHT 0
+#define NOON 1
+#define STAY 4
 
-ll N, num, g[105][105], vst[105][105], dst[105][105];
-const int dr[] = {-1, 1, 0, 0}, dc[] = {0, 0, -1, 1};
-
-void dfs(int r, int c) {
-  vst[r][c] = num;
-  for (int i = 0; i < 4; i++) {
-    int nr = r + dr[i], nc = c + dc[i];
-    if (nr < 0 || nc < 0 || nr >= N || nc >= N) continue;
-    if (g[nr][nc] && !vst[nr][nc]) dfs(nr, nc);
-  }
-}
+ll R, C, K, g[1010][1010], vst[1010][1010][11];
+const ll dr[] = {-1, 1, 0, 0, 0}, dc[] = {0, 0, -1, 1, 0};
 
 int main() {
   ios_base::sync_with_stdio(0);
   cin.tie(0); cout.tie(0);
+  memset(vst, 0x3f, sizeof(vst));
 
-  cin >> N;
-  for (int r = 0; r < N; r++) {
-    for (int c = 0; c < N; c++) {
-      cin >> g[r][c];
+  cin >> R >> C >> K;
+  for (int r = 0; r < R; r++) {
+    string s; cin >> s;
+    for (int c = 0; c < C; c++) {
+      g[r + 1][c + 1] = s[c] - '0';
     }
   }
 
-  vector<pll> v;
-  for (int r = 0; r < N; r++) {
-    for (int c = 0; c < N; c++) {
-      // 물과 접해 있는 가장자리 블록을 벡터에 삽입
-      if (g[r][c] == 1) {
-        bool flag = 0;
-        for (int i = 0; i < 4; i++) {
-          int nr = r + dr[i], nc = c + dc[i];
-          if (nr < 0 || nc < 0 || nr >= N || nc >= N) continue;
-          if (g[nr][nc] == 0) flag = 1;
-        }
-        if (flag) v.push_back({r, c});
-      }
+  queue<tuple<ll, ll, ll, ll>> q;
+  q.push({1, 1, 0, 1}); vst[1][1][0] = 1;
 
-      // vst 배열에 섬의 번호를 저장
-      if (g[r][c] && !vst[r][c]) num++, dfs(r, c);
-    }
-  }
+  while (q.size()) {
+    auto [cr, cc, cj, cdst] = q.front();
+    q.pop();
 
-  // 벡터에 삽입된 모든 시작점에 대해 최단 거리 탐색
-  ll ans = LINF;
-  for (auto [sr, sc] : v) {
-    memset(dst, 0x3f, sizeof(dst));
-    queue<pll> q; q.push({sr, sc}); dst[sr][sc] = 0;
-    ll sn = vst[sr][sc]; // 시작점의 섬 번호
-
-    while (q.size()) {
-      auto [cr, cc] = q.front();
-      ll cn = vst[cr][cc], cdst = dst[cr][cc];
-      q.pop();
-
-      // 육지이고 다른 섬이면 다리 성립, 더 길어질 필요 없음
-      if (g[cr][cc] && sn != vst[cr][cc]) ans = min(ans, cdst);
-
+    if (cdst % 2 == NOON) {
       for (int i = 0; i < 4; i++) {
-        ll nr = cr + dr[i], nc = cc + dc[i], ndst = cdst + 1;
-        if (nr < 0 || nc < 0 || nr >= N || nc >= N) continue;
-        if (ndst >= dst[nr][nc] || vst[nr][nc] == sn) continue;
+        ll nr = cr + dr[i], nc = cc + dc[i], nj = cj + 1, ndst = cdst + 1;
+        if (nr <= 0 || nc <= 0 || nr > R || nc > C) continue;
 
-        dst[nr][nc] = ndst;
-        q.push({nr, nc});
+        if (g[nr][nc] && ndst < vst[nr][nc][cj + 1] && nj <= K) // 벽 부수기
+          vst[nr][nc][nj] = ndst, q.push({nr, nc, nj, ndst});
+        else if (!g[nr][nc] && ndst < vst[nr][nc][cj]) // 통로 이동
+          vst[nr][nc][cj] = ndst, q.push({nr, nc, cj, ndst});
+      }
+    }
+
+    if (cdst % 2 == NIGHT) {
+      for (int i = 0; i < 5; i++) {
+        ll nr = cr + dr[i], nc = cc + dc[i], ndst = cdst + 1;
+        if (nr <= 0 || nc <= 0 || nr > R || nc > C) continue;
+        
+        // 부순 벽이므로 무조건 머무를 수 있음
+        if (i == STAY) q.push({nr, nc, cj, ndst});
+        else if (!g[nr][nc] && ndst < vst[nr][nc][cj]) // 통로 이동 시 벽 확인
+          vst[nr][nc][cj] = ndst, q.push({nr, nc, cj, ndst});
       }
     }
   }
   
-  cout << ans - 1;
+  ll ans = LINF;
+  for (int lv = 0; lv <= K; lv++) ans = min(ans, vst[R][C][lv]);
+  (ans == LINF) ? cout << -1 : cout << ans;
 }
