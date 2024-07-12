@@ -1,4 +1,4 @@
-// idea: deque, multiset
+// idea: lis
 
 #include <bits/stdc++.h>
 using namespace std;
@@ -8,19 +8,22 @@ using namespace std;
 #define LINF 0x3f3f3f3f3f3f3f3fLL
 #define PINF 1000000007
 
+ll lis[1000100];
+
 int main() {
   ios_base::sync_with_stdio(0);
   cin.tie(0); cout.tie(0);
 
-  ll N, L; cin >> N >> L;
-  deque<ll> dq; multiset<ll> s;
+  memset(lis, 0x3f, sizeof(lis));
+  lis[0] = -LINF;
+
+  ll N; cin >> N;
   for (int i = 0; i < N; i++) {
     ll x; cin >> x;
-    dq.push_back(x), s.insert(x);
-    if (dq.size() > L) {
-      s.erase(s.find(dq.front()));
-      dq.pop_front();
-    }
-    cout << *s.begin() << ' ';
+    auto idx = lower_bound(lis, lis + N + 5, x) - lis; // F-T 우측
+    lis[idx] = x; 
   }
+
+  auto idx = lower_bound(lis, lis + N + 5, LINF) - lis - 1; // F-T 좌측
+  cout << idx << '\n';
 }
