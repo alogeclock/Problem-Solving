@@ -5,15 +5,10 @@ using namespace std;
 #define ll long long
 #define pll pair<ll, ll>
 #define INF 0x3f3f3f3f
-#define LINF 0x3f3f3f3f3f3f3f3f
+#define LINF 0x3f3f3f3f3f3f3f3fLL
 #define PINF 1000000007
 #define FOR(i, j) for(int (i) = 0; (i) < (j); (i)++)
 #define OUT(i, j) ((i) < 0 || (i) >= (j))
-
-struct Tomato {
-  int days, m, n, o, p, q, r, s, t, u, v, w;
-  Tomato(int d, int m, int n, int o, int p, int q, int r, int s, int t, int u, int v, int w) : days(d), m(m), n(n), o(o), p(p), q(q), r(r), s(s), t(t), u(u), v(v), w(w) {}
-};
 
 const int dir[22][11] = {
   {-1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 
@@ -51,20 +46,21 @@ int main() {
   int ripen = 0, tomatoes = 0;
   int box[W][V][U][T][S][R][Q][P][O][N][M];
   
-  queue<Tomato> queue;
+  queue<tuple<int, int, int, int, int, int, int, int, int, int, int, int>> queue;
+  // day, m, n, o, p, q, r, s, t, u, v, w
   FOR(w, W) FOR(v, V) FOR(u, U) FOR(t, T) FOR(s, S) FOR(r, R) FOR(q, Q) FOR(p, P) FOR(o, O) FOR(n, N) FOR(m, M) {
     cin >> box[w][v][u][t][s][r][q][p][o][n][m];
     if (box[w][v][u][t][s][r][q][p][o][n][m] == 1) {
       ripen++;
-      queue.push(Tomato(0, m, n, o, p, q, r, s, t, u, v, w));
+      queue.push({0, m, n, o, p, q, r, s, t, u, v, w});
     }
     if (box[w][v][u][t][s][r][q][p][o][n][m] != -1) tomatoes++;
   }
 
-  int answer = 0;
+  int ans = 0;
   while (queue.size()) {
-    int cdst = queue.front().days, cm = queue.front().m, cn = queue.front().n, co = queue.front().o, cp = queue.front().p, cq = queue.front().q, cr = queue.front().r, cs = queue.front().s, ct = queue.front().t, cu = queue.front().u, cv = queue.front().v, cw = queue.front().w;
-    answer = max(answer, cdst);
+    auto [cdst, cm, cn, co, cp, cq, cr, cs, ct, cu, cv, cw] = queue.front();
+    ans = max(ans, cdst);
     queue.pop();
 
     FOR(i, 22) {
@@ -74,11 +70,11 @@ int main() {
       if (box[nw][nv][nu][nt][ns][nr][nq][np][no][nn][nm] == 0) {
         ripen++;
         box[nw][nv][nu][nt][ns][nr][nq][np][no][nn][nm] = 1;
-        queue.push(Tomato(ndst, nm, nn, no, np, nq, nr, ns, nt, nu, nv, nw));
+        queue.push({ndst, nm, nn, no, np, nq, nr, ns, nt, nu, nv, nw});
       }
     }
   }
   
-  answer = (ripen == tomatoes) ? answer : -1;
-  cout << answer;
+  ans = (ripen == tomatoes) ? ans : -1;
+  cout << ans;
 }

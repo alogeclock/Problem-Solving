@@ -14,6 +14,10 @@
     "complex": "cpp",
     "ratio": "cpp",
     "chrono": "cpp",
-    "limits": "cpp"
+    "limits": "cpp",
+    "deque": "cpp",
+    "forward_list": "cpp",
+    "list": "cpp",
+    "vector": "cpp"
   }
 }
