@@ -13,8 +13,7 @@ const int dr[5] = {0, 1, -1, 0, 0}, dc[5] = {0, 0, 0, 1, -1};
 
 int main() {
   ios_base::sync_with_stdio(0);
-  cin.tie(0);
-  cout.tie(0);
+  cin.tie(0); cout.tie(0);
 
   cin >> N >> K;
   for (int i = 0; i < N; i++) {

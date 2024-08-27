@@ -15,28 +15,28 @@ using namespace std;
 
 ll arr[MAX_NUMBER], tree[4 * MAX_NUMBER];
 
-ll init(ll s, ll e, ll node) {
-  if (s == e) return tree[node] = arr[s];
+ll init(ll s, ll e, ll n) {
+  if (s == e) return tree[n] = arr[s];
   ll mid = (s + e) / 2;
-  return tree[node] = (init(s, mid, node * 2) * init(mid + 1, e, node * 2 + 1)) % PINF;
+  return tree[n] = (init(s, mid, n * 2) * init(mid + 1, e, n * 2 + 1)) % PINF;
 }
 
 // [s, e]는 현재 읽는 범위, [l, r]은 내가 원하는 범위
-ll mul(ll s, ll e, ll node, ll l, ll r) {
+ll mul(ll s, ll e, ll n, ll l, ll r) {
   if (e < l || r < s) return 1; // 0을 곱하는 대신 1을 곱해야 구간곱이 모두 0이 되지 않음
-  if (l <= s && e <= r) return tree[node];
+  if (l <= s && e <= r) return tree[n];
   ll mid = (s + e) / 2;
-  return (mul(s, mid, node * 2, l, r) * mul(mid + 1, e, node * 2 + 1, l, r)) % PINF;
+  return (mul(s, mid, n * 2, l, r) * mul(mid + 1, e, n * 2 + 1, l, r)) % PINF;
 }
 
 // 이전처럼 만날 때마다 갱신하는 대신, leaf node에서부터 역으로 값을 갱신하는 응용
-void update(ll s, ll e, ll node, ll idx, ll value) {
-  if (idx < s || idx > e) return;
-  if (s == e) { tree[node] = value; return; }
+ll update(ll s, ll e, ll n, ll idx, ll value) {
+  if (idx < s || idx > e) return tree[n];
+  if (s == e) return tree[n] = value;
 
   ll mid = (s + e) / 2;
-  update(s, mid, node * 2, idx, value), update(mid + 1, e, node * 2 + 1, idx, value);
-  tree[node] = (tree[node * 2] * tree[node * 2 + 1]) % PINF;
+  update(s, mid, n * 2, idx, value), update(mid + 1, e, n * 2 + 1, idx, value);
+  return tree[n] = (tree[2 * n] * tree[2 * n + 1]) % PINF;
 }
 
 int main() {
