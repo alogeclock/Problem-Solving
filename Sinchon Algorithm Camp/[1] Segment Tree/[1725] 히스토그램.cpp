@@ -30,7 +30,7 @@ ll query(ll s, ll e, ll n, ll l, ll r) {
   ll mid = (s + e) / 2;
   ll left = query(s, mid, 2 * n, l, r);
   ll right = query(mid + 1, e, 2 * n + 1, l, r);
-  
+
   if (left == LINF) left = l;
   if (right == LINF) right = r;
   return (arr[left] > arr[right]) ? right : left;
