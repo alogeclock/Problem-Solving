@@ -23,26 +23,5 @@ int main() {
   ios_base::sync_with_stdio(0);
   cin.tie(0); cout.tie(0);
 
-  ll N; cin >> N;
-  string word; cin >> word;
-  for (int i = 0; i < N; i++) {
-    cin >> dict[i];
-    if (dict[i] == word) vst[i] = 1;
-  }
-
-  queue<string> q; q.push(word);
-  string ans = word;
-  while (q.size()) {
-    string cur = q.front(); q.pop();
-    for (int i = 0; i < N; i++) {
-      if (vst[i]) continue;
-      string next = dict[i];
-      if (overlap(cur, next)) {
-        q.push(next);
-        if (ans.length() > next.length()) ans = next;
-        vst[i] = 1;
-      }
-    }
-  }
-  cout << ans;
+  cout << "Hello World\n";
 }

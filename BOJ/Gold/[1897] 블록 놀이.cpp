@@ -6,15 +6,15 @@ using namespace std;
 #define LINF 0x3f3f3f3f3f3f3f3f
 #define PINF 1000000007
 
-string dict[1010];
+string dict[1010], ans;
 ll vst[1010];
 
-bool overlap(string s, string t) {
-  if (t.length() != s.length() + 1) return false;
-  int c = 0; // 처음 말한 단어의 c번째 문자
-  for (auto i : t) {
-    if (s[c] == i) c++;  
-    if (c == s.length()) return true;
+bool check(string next, string cur) {
+  if (next.length() != cur.length() + 1) return false;
+  ll c = 0;
+  for (auto i : next) {
+    if (cur[c] == i) c++;
+    if (c == cur.length()) return true;
   }
   return false;
 }
@@ -24,23 +24,23 @@ int main() {
   cin.tie(0); cout.tie(0);
 
   ll N; cin >> N;
-  string word; cin >> word;
+  string word; cin >> word; // 처음 말한 단어
   for (int i = 0; i < N; i++) {
     cin >> dict[i];
     if (dict[i] == word) vst[i] = 1;
   }
-
+  ans = word;
+    
   queue<string> q; q.push(word);
-  string ans = word;
-  while (q.size()) {
-    string cur = q.front(); q.pop();
+  while (!q.empty()) {
+    string cur = q.front();
+    q.pop();
     for (int i = 0; i < N; i++) {
-      if (vst[i]) continue;
       string next = dict[i];
-      if (overlap(cur, next)) {
-        q.push(next);
-        if (ans.length() > next.length()) ans = next;
+      if (!vst[i] && check(next, cur)) {
+        if (ans.length() < next.length()) ans = next;
         vst[i] = 1;
+        q.push(next);
       }
     }
   }
