@@ -1,0 +1,9 @@
+@references
+.vscode
+.cph
+.CSE3081
+.Sinchon*
+test_debug.*
+
+/*.cpp
+/*.exe
