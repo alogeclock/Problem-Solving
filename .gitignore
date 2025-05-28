@@ -4,6 +4,7 @@
 .CSE3081
 .Sinchon*
 test_debug.*
+build
 
 /*.cpp
 /*.exe
