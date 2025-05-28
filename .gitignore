@@ -6,5 +6,6 @@
 test_debug.*
 build
 
+main
 /*.cpp
 /*.exe
