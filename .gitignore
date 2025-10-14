@@ -5,6 +5,7 @@
 .Sinchon*
 test_debug.*
 build
+out
 
 main
 /*.cpp
