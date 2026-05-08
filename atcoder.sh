@@ -1,19 +1,22 @@
 #!/bin/bash
 
-# 인자(대회 이름)가 입력되지 않았을 때 안내 메시지
+# 인자가 입력되지 않았을 때 안내 메시지
 if [ -z "$1" ]; then
   echo "사용법: ./make_contest.sh [대회이름]"
   echo "예시: ./make_contest.sh abc300"
   exit 1
 fi
 
-# 소문자로 입력해도 대문자로 변환되도록 처리 (깔끔한 폴더 정리)
-CONTEST_NAME=$(echo "$1" | tr '[:lower:]' '[:upper:]')
+# 1. 입력받은 이름 그대로 소문자화 (폴더명용: abc-453)
+CONTEST_DIR_NAME=$(echo "$1" | tr '[:upper:]' '[:lower:]')
+
+# 2. 하이픈 제거 버전 생성 (AtCoder URL용: abc453)
+CONTEST_ID=$(echo "$CONTEST_DIR_NAME" | sed 's/-//g')
 
 # 경로 설정
-BASE_DIR="./AtCoder"
+BASE_DIR="./atcoder"
 TEMPLATE_FILE="./template.cpp"
-TARGET_DIR="$BASE_DIR/$CONTEST_NAME"
+CONTEST_PATH="$BASE_DIR/$CONTEST_DIR_NAME"
 
 # template.cpp 파일이 있는지 확인
 if [ ! -f "$TEMPLATE_FILE" ]; then
@@ -21,12 +24,24 @@ if [ ! -f "$TEMPLATE_FILE" ]; then
   exit 1
 fi
 
-# AtCoder 폴더와 대회 폴더 만들기 (-p 옵션으로 부모 폴더가 없으면 같이 생성)
-mkdir -p "$TARGET_DIR"
-
-# A번부터 F번까지 템플릿 코드 복사
+# A번부터 F번까지 각 폴더 생성 및 데이터 다운로드
 for problem in A B C D E F; do
-  cp "$TEMPLATE_FILE" "$TARGET_DIR/$problem.cpp"
+  PROBLEM_DIR="$CONTEST_PATH/$problem"
+  
+  # 각 폴더 생성 후 템플릿 파일 복사
+  mkdir -p "$PROBLEM_DIR"
+  TARGET_FILE="$PROBLEM_DIR/$problem.cpp"
+  cp "$TEMPLATE_FILE" "$TARGET_FILE"
+  
+  # 3. oj-tools를 이용한 테스트 케이스 다운로드
+  PROBLEM_URL="https://atcoder.jp/contests/${CONTEST_ID}/tasks/${CONTEST_ID}_${problem}"
+  
+  echo "--------------------------------------------------"
+  echo "Downloading: $problem ($PROBLEM_URL)"
+  
+  # 해당 문제 폴더 내부의 test 폴더에 다운로드
+  oj download "$PROBLEM_URL" -d "$PROBLEM_DIR/test"
 done
 
-echo "SUCCESS: '$TARGET_DIR' 폴더에 A.cpp ~ F.cpp 세팅이 완료되었습니다!"
+echo "--------------------------------------------------"
+echo "SUCCESS: '$CONTEST_PATH' 세팅 및 테스트 케이스 다운로드가 완료되었습니다!"

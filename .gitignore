@@ -6,6 +6,7 @@
 test_debug.*
 build
 out
+.python-packages/
 
 main
 /*.cpp
