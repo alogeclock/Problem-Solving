@@ -11,18 +11,16 @@ Usage:
 
 Notes:
   - 루트의 template.cpp를 복사해서 Jungol/{tier}/{problem_id}.cpp 생성
-  - 생성 코드 맨 위에 // {문제 번호}. {문제 이름} 주석 삽입
+  - tier 폴더는 Bronze, Silver, Gold, Platinum, Diamond, Ruby 단위로만 생성
+  - 생성 코드 맨 위에 // [Bronze 1] 1005. 가장 큰 소인수 형식 주석 삽입
   - Jungol 페이지에서 티어를 못 찾으면 Jungol/Unrated/{problem_id}.cpp 로 생성
-  - 샘플 테스트케이스는 cpp 옆에 Jungol/{tier}/{problem_id}.testcase 로 저장
-  - -t 실행 시 기본적으로 웹에 다시 접속하지 않고 .testcase 파일만 사용
-  - --refresh 옵션을 주면 Jungol 페이지에서 다시 다운로드
+  - -t 실행 시 매번 Jungol 페이지에서 예제 입력/출력을 다시 읽어 채점
 """
 
 from __future__ import annotations
 
 import argparse
 import html
-import json
 import os
 import re
 import subprocess
@@ -41,13 +39,14 @@ try:
     from bs4 import BeautifulSoup, Tag
 except ImportError:
     print("[ERROR] 필요한 패키지가 없습니다.")
+    print("        sudo 없이 설치하려면:")
+    print("        python3 -m pip install --target ./.python-packages requests beautifulsoup4")
     sys.exit(1)
 
 
 BASE_URL = "https://jungol.co.kr/problem/{problem_id}"
 TEMPLATE_CPP = ROOT / "template.cpp"
 JUNGOL_DIR = ROOT / "Jungol"
-GITIGNORE = ROOT / ".gitignore"
 
 CPP_COMPILER = os.environ.get("CXX", "g++")
 CPP_FLAGS = [
@@ -69,14 +68,12 @@ class SampleCase:
 class ProblemInfo:
     problem_id: str
     title: str
-    tier: str
+    tier: str          # 폴더용: Bronze, Silver, Gold...
+    tier_detail: str   # 주석용: Bronze 1, Silver 3...
     samples: list[SampleCase]
 
 
 def normalize_problem_arg(value: str) -> str:
-    """
-    1000, /problem/1000, https://jungol.co.kr/problem/1000 모두 지원.
-    """
     value = value.strip()
 
     match = re.search(r"/problem/(\d+)", value)
@@ -121,6 +118,7 @@ def clean_text(text: str) -> str:
         "text_fields",
         "translate",
         "space_bar",
+        "keyboard_return",
         "chevron_right",
     ]
 
@@ -172,7 +170,15 @@ def parse_title_from_soup(soup: BeautifulSoup, problem_id: str) -> str:
     return f"Problem {problem_id}"
 
 
-def tier_number_to_name(tier_number: int) -> str:
+def tier_number_to_names(tier_number: int) -> tuple[str, str]:
+    """
+    1~5   : Bronze 5 ~ Bronze 1
+    6~10  : Silver 5 ~ Silver 1
+    11~15 : Gold 5 ~ Gold 1
+    16~20 : Platinum 5 ~ Platinum 1
+    21~25 : Diamond 5 ~ Diamond 1
+    26~30 : Ruby 5 ~ Ruby 1
+    """
     groups = [
         "Bronze",
         "Silver",
@@ -183,22 +189,24 @@ def tier_number_to_name(tier_number: int) -> str:
     ]
 
     if tier_number < 1 or tier_number > 30:
-        return "Unrated"
+        return "Unrated", "Unrated"
 
     group_index = (tier_number - 1) // 5
     level = 5 - ((tier_number - 1) % 5)
 
-    return f"{groups[group_index]}_{level}"
+    folder_tier = groups[group_index]
+    detail_tier = f"{folder_tier} {level}"
+
+    return folder_tier, detail_tier
 
 
-def parse_tier_from_soup(soup: BeautifulSoup) -> str:
+def parse_tier_from_soup(soup: BeautifulSoup) -> tuple[str, str]:
     """
     Jungol 난이도 아이콘 URL 예:
       https://s.jungol.co.kr/solved/18.svg?dm=jungol.co.kr
 
-    여기서 18을 뽑아 Platinum_3으로 변환.
+    18.svg -> ("Platinum", "Platinum 3")
     """
-    # 1. img, source, object 등의 src/data 속성에서 우선 탐색
     for tag in soup.find_all(True):
         for attr_name in ["src", "data-src", "href", "data", "style"]:
             attr_value = tag.get(attr_name)
@@ -208,16 +216,15 @@ def parse_tier_from_soup(soup: BeautifulSoup) -> str:
             match = re.search(r"/solved/(\d+)\.svg", str(attr_value))
             if match:
                 tier_number = int(match.group(1))
-                return tier_number_to_name(tier_number)
+                return tier_number_to_names(tier_number)
 
-    # 2. HTML 전체 문자열에서 fallback 탐색
     html_text = str(soup)
     match = re.search(r"/solved/(\d+)\.svg", html_text)
     if match:
         tier_number = int(match.group(1))
-        return tier_number_to_name(tier_number)
+        return tier_number_to_names(tier_number)
 
-    return "Unrated"
+    return "Unrated", "Unrated"
 
 
 def get_heading_text(tag: Tag) -> str:
@@ -229,6 +236,157 @@ def remove_label_noise(text: str) -> str:
     bad = {"입력", "출력", "content_copy", "login", "logout"}
     lines = [line for line in lines if compact_single_line(line) not in bad]
     return clean_text("\n".join(lines))
+
+
+def is_sample_noise_line(line: str) -> bool:
+    text = line.strip()
+    if not text:
+        return True
+
+    noise = {
+        "login",
+        "logout",
+        "content_copy",
+        "text_fields",
+        "translate",
+        "chevron_right",
+    }
+    return text in noise
+
+
+def decode_jungol_sample_lines(lines: list[str]) -> str:
+    """
+    Jungol 예제 영역은 실제 공백/개행을 Material Icon 텍스트로 끼워 넣는 경우가 있다.
+
+      space_bar       -> 같은 줄의 공백
+      keyboard_return -> 줄바꿈
+
+    soup.get_text("\n")로 읽으면 DOM 노드 경계 때문에 0, space_bar, 1이 각각 다른 줄로
+    갈라질 수 있다. 따라서 원본 줄바꿈을 곧바로 샘플 개행으로 보지 않고, 아이콘 토큰을
+    기준으로 다시 조립한다.
+    """
+    cleaned_lines = []
+    has_jungol_tokens = False
+
+    for line in lines:
+        line = html.unescape(line)
+        line = line.replace("\xa0", " ")
+        line = line.replace("\r\n", "\n").replace("\r", "\n")
+
+        for subline in line.split("\n"):
+            subline = subline.strip()
+            if is_sample_noise_line(subline):
+                continue
+            if re.search(r"\b(?:space_bar|keyboard_return)\b", subline):
+                has_jungol_tokens = True
+            cleaned_lines.append(subline)
+
+    if not cleaned_lines:
+        return ""
+
+    # 아이콘 토큰이 없는 평범한 pre/code 스타일 예제는 실제 줄바꿈을 그대로 보존한다.
+    if not has_jungol_tokens:
+        return clean_text("\n".join(cleaned_lines))
+
+    output_lines: list[str] = []
+    current = ""
+
+    def flush_line() -> None:
+        nonlocal current
+        output_lines.append(current.rstrip())
+        current = ""
+
+    for line in cleaned_lines:
+        # 한 줄 안에 "0 space_bar 1"처럼 들어온 경우와,
+        # "0" / "space_bar" / "1"처럼 노드별로 갈라진 경우를 모두 처리한다.
+        tokens = re.split(r"(\bspace_bar\b|\bkeyboard_return\b)", line)
+
+        for token in tokens:
+            if token == "":
+                continue
+
+            if token == "space_bar":
+                current += " "
+                continue
+
+            if token == "keyboard_return":
+                flush_line()
+                continue
+
+            # 토큰 주변의 DOM 구분용 공백은 제거하되, 토큰 내부 공백은 하나로 정리한다.
+            token = re.sub(r"[ \t\f\v]+", " ", token).strip()
+            if not token:
+                continue
+            current += token
+
+    if current or not output_lines:
+        flush_line()
+
+    while output_lines and output_lines[0] == "":
+        output_lines.pop(0)
+    while output_lines and output_lines[-1] == "":
+        output_lines.pop()
+
+    return "\n".join(output_lines)
+
+
+def parse_samples_by_jungol_text(soup: BeautifulSoup) -> list[SampleCase]:
+    """
+    Jungol v7 예제 영역을 줄 단위로 읽어서 입력/출력 블록을 분리한다.
+    DOM 파서는 부모 컨테이너 전체를 잡기 쉬우므로, Jungol 페이지는 이 경로를 우선 사용한다.
+    """
+    raw_lines = soup.get_text("\n").splitlines()
+    lines = [html.unescape(line).replace("\xa0", " ").strip() for line in raw_lines]
+    lines = [line for line in lines if line]
+
+    samples: list[SampleCase] = []
+    i = 0
+
+    def is_sample_header(text: str) -> bool:
+        return re.fullmatch(r"예제(?:\s*#?\s*\d+)?", text) is not None
+
+    def is_stop_header(text: str) -> bool:
+        return (
+            is_sample_header(text)
+            or text in {"힌트", "태그", "출처"}
+            or re.fullmatch(r"관련\s*문제|제출|채점|문제\s*목록|내\s*제출|댓글|소스|분류", text) is not None
+        )
+
+    while i < len(lines):
+        if not is_sample_header(lines[i]):
+            i += 1
+            continue
+
+        i += 1
+        while i < len(lines) and lines[i] != "입력":
+            if is_sample_header(lines[i]):
+                break
+            i += 1
+        if i >= len(lines) or lines[i] != "입력":
+            continue
+
+        i += 1
+        input_lines: list[str] = []
+        while i < len(lines) and lines[i] != "출력":
+            if is_stop_header(lines[i]):
+                break
+            input_lines.append(lines[i])
+            i += 1
+        if i >= len(lines) or lines[i] != "출력":
+            continue
+
+        i += 1
+        output_lines: list[str] = []
+        while i < len(lines) and not is_stop_header(lines[i]):
+            output_lines.append(lines[i])
+            i += 1
+
+        input_text = decode_jungol_sample_lines(input_lines)
+        output_text = decode_jungol_sample_lines(output_lines)
+        if input_text and output_text:
+            samples.append(SampleCase(input_text, output_text))
+
+    return samples
 
 
 def find_next_code_like_text(start: Tag) -> Optional[str]:
@@ -320,25 +478,28 @@ def strip_explanation_tail(text: str) -> str:
 
 
 def parse_samples_by_text(soup: BeautifulSoup) -> list[SampleCase]:
-    """
-    DOM 파싱 실패 시 fallback.
-    """
+    # Jungol 신형 페이지 우선 처리.
+    samples = parse_samples_by_jungol_text(soup)
+    if samples:
+        return samples
+
+    # pre/code 기반 또는 구형 페이지 fallback.
     raw = soup.get_text("\n")
     raw = clean_text(raw)
 
     pattern = re.compile(
-        r"예제\s*#?\s*(\d+)\s*"
+        r"예제(?:\s*#?\s*\d+)?\s*"
         r"(?:입력)?\s*(.*?)\s*"
         r"(?:출력)\s*(.*?)"
-        r"(?=(?:예제\s*#?\s*\d+)|(?:힌트)|(?:태그)|(?:출처)|\Z)",
+        r"(?=(?:예제(?:\s*#?\s*\d+)?)|(?:힌트)|(?:태그)|(?:출처)|\Z)",
         re.S,
     )
 
     samples: list[SampleCase] = []
 
     for match in pattern.finditer(raw):
-        input_part = remove_label_noise(match.group(2))
-        output_part = remove_label_noise(match.group(3))
+        input_part = remove_label_noise(match.group(1))
+        output_part = remove_label_noise(match.group(2))
 
         input_part = strip_explanation_tail(input_part)
         output_part = strip_explanation_tail(output_part)
@@ -354,26 +515,25 @@ def parse_problem(problem_id: str) -> ProblemInfo:
     soup = BeautifulSoup(page_html, "html.parser")
 
     title = parse_title_from_soup(soup, problem_id)
-    tier = parse_tier_from_soup(soup)
+    tier, tier_detail = parse_tier_from_soup(soup)
 
-    samples = parse_samples_by_dom(soup)
+    # Jungol 예제는 공백/개행이 아이콘 토큰으로 표현되는 경우가 있어
+    # 텍스트 파서를 먼저 사용한다. DOM 파서는 구형/pre 기반 페이지 fallback이다.
+    samples = parse_samples_by_text(soup)
     if not samples:
-        samples = parse_samples_by_text(soup)
+        samples = parse_samples_by_dom(soup)
 
     return ProblemInfo(
         problem_id=problem_id,
         title=title,
         tier=tier,
+        tier_detail=tier_detail,
         samples=samples,
     )
 
 
 def get_problem_cpp_path(problem: ProblemInfo) -> Path:
     return JUNGOL_DIR / sanitize_path_part(problem.tier) / f"{problem.problem_id}.cpp"
-
-
-def get_problem_testcase_path(problem: ProblemInfo) -> Path:
-    return get_problem_cpp_path(problem).with_suffix(".testcase")
 
 
 def find_existing_cpp(problem: ProblemInfo) -> Path:
@@ -390,100 +550,6 @@ def find_existing_cpp(problem: ProblemInfo) -> Path:
     )
 
 
-def find_existing_testcase_path(problem_id: str) -> Optional[Path]:
-    candidates = list(JUNGOL_DIR.glob(f"*/{problem_id}.testcase"))
-    if candidates:
-        return candidates[0]
-    return None
-
-
-def ensure_gitignore_entry(entry: str) -> None:
-    existing = ""
-
-    if GITIGNORE.exists():
-        existing = GITIGNORE.read_text(encoding="utf-8", errors="ignore")
-
-    lines = {line.strip() for line in existing.splitlines()}
-
-    if entry not in lines:
-        with GITIGNORE.open("a", encoding="utf-8") as f:
-            if existing and not existing.endswith("\n"):
-                f.write("\n")
-            f.write(f"{entry}\n")
-
-        print(f"[OK] .gitignore 추가: {entry}")
-
-
-def save_problem_cache(problem: ProblemInfo) -> None:
-    testcase_path = get_problem_testcase_path(problem)
-    testcase_path.parent.mkdir(parents=True, exist_ok=True)
-
-    data = {
-        "problem_id": problem.problem_id,
-        "title": problem.title,
-        "tier": problem.tier,
-        "url": BASE_URL.format(problem_id=problem.problem_id),
-        "samples": [
-            {
-                "input": sample.input_text,
-                "output": sample.output_text,
-            }
-            for sample in problem.samples
-        ],
-    }
-
-    testcase_path.write_text(
-        json.dumps(data, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
-
-    ensure_gitignore_entry("*.testcase")
-
-    print(f"[OK] 테스트케이스 저장: {testcase_path}")
-
-
-def load_problem_cache(problem_id: str) -> Optional[ProblemInfo]:
-    testcase_path = find_existing_testcase_path(problem_id)
-
-    if testcase_path is None or not testcase_path.exists():
-        return None
-
-    data = json.loads(testcase_path.read_text(encoding="utf-8"))
-
-    samples = [
-        SampleCase(
-            input_text=str(sample.get("input", "")),
-            output_text=str(sample.get("output", "")),
-        )
-        for sample in data.get("samples", [])
-    ]
-
-    return ProblemInfo(
-        problem_id=str(data.get("problem_id", problem_id)),
-        title=str(data.get("title", f"Problem {problem_id}")),
-        tier=str(data.get("tier", "Unrated")),
-        samples=samples,
-    )
-
-
-def load_problem(problem_id: str, use_cache: bool = True, allow_web: bool = True) -> ProblemInfo:
-    if use_cache:
-        cached = load_problem_cache(problem_id)
-        if cached is not None:
-            print(f"[CACHE] testcase 파일에서 문제 정보 로드: #{problem_id}")
-            return cached
-
-    if not allow_web:
-        raise FileNotFoundError(
-            f"{problem_id}.testcase 파일을 찾지 못했습니다.\n"
-            f"먼저 ./jungol.py -c {problem_id} 를 실행하세요."
-        )
-
-    problem = parse_problem(problem_id)
-    save_problem_cache(problem)
-    return problem
-
-
 def copy_template(problem: ProblemInfo, overwrite: bool = False) -> Path:
     if not TEMPLATE_CPP.exists():
         raise FileNotFoundError(f"template.cpp를 찾을 수 없습니다: {TEMPLATE_CPP}")
@@ -498,7 +564,11 @@ def copy_template(problem: ProblemInfo, overwrite: bool = False) -> Path:
 
     template_text = TEMPLATE_CPP.read_text(encoding="utf-8")
 
-    header = f"// {problem.problem_id}. {problem.title}\n"
+    if problem.tier_detail and problem.tier_detail != "Unrated":
+        header = f"// [{problem.tier_detail}] {problem.problem_id}. {problem.title}\n"
+    else:
+        header = f"// {problem.problem_id}. {problem.title}\n"
+
     output_text = header + template_text
 
     dst.write_text(output_text, encoding="utf-8")
@@ -514,6 +584,31 @@ def normalize_output(text: str) -> str:
         lines.pop()
 
     return "\n".join(lines)
+
+
+def format_block_for_log(text: str) -> str:
+    # 채점용 normalize_output과 달리, 로그 가독성만 위한 포맷이다.
+    # 줄바꿈은 보존하고 연속 빈 줄만 하나로 줄인다. 같은 줄의 공백은 건드리지 않는다.
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    lines = [line.rstrip() for line in text.split("\n")]
+
+    while lines and not lines[0].strip():
+        lines.pop(0)
+    while lines and not lines[-1].strip():
+        lines.pop()
+
+    compacted = []
+    previous_blank = False
+    for line in lines:
+        if not line.strip():
+            if not previous_blank:
+                compacted.append("")
+            previous_blank = True
+        else:
+            compacted.append(line)
+            previous_blank = False
+
+    return "\n".join(compacted)
 
 
 def compile_cpp(source_path: Path, exe_path: Path) -> None:
@@ -565,11 +660,11 @@ def run_one_sample(exe_path: Path, sample: SampleCase, index: int) -> bool:
 
     if not ok:
         print("[input]")
-        print(sample.input_text)
+        print(format_block_for_log(sample.input_text))
         print("[expected]")
-        print(expected)
+        print(format_block_for_log(expected))
         print("[actual]")
-        print(actual)
+        print(format_block_for_log(actual))
         print(f"[returncode] {result.returncode}")
 
     return ok
@@ -598,6 +693,13 @@ def testcase(problem: ProblemInfo) -> None:
 
         if passed != total:
             sys.exit(1)
+
+
+def print_problem_info(problem: ProblemInfo) -> None:
+    print(f"[INFO] #{problem.problem_id} {problem.title}")
+    print(f"[INFO] tier: {problem.tier_detail}")
+    print(f"[INFO] folder: {problem.tier}")
+    print(f"[INFO] samples: {len(problem.samples)}")
 
 
 def main() -> None:
@@ -629,46 +731,17 @@ def main() -> None:
         help="--copy 시 기존 파일 덮어쓰기",
     )
 
-    parser.add_argument(
-        "--refresh",
-        action="store_true",
-        help="기존 .testcase 캐시를 무시하고 Jungol 페이지에서 다시 다운로드",
-    )
-
     args = parser.parse_args()
-
     target = args.copy or args.testcase
 
     try:
         problem_id = normalize_problem_arg(target)
+        problem = parse_problem(problem_id)
+        print_problem_info(problem)
 
         if args.copy:
-            problem = load_problem(
-                problem_id,
-                use_cache=not args.refresh,
-                allow_web=True,
-            )
-
-            print(f"[INFO] #{problem.problem_id} {problem.title}")
-            print(f"[INFO] tier: {problem.tier}")
-            print(f"[INFO] samples: {len(problem.samples)}")
-
             copy_template(problem, overwrite=args.force)
-
-            # 캐시에서 읽은 경우에도 gitignore 보장
-            ensure_gitignore_entry("*.testcase")
-
         elif args.testcase:
-            problem = load_problem(
-                problem_id,
-                use_cache=not args.refresh,
-                allow_web=args.refresh,
-            )
-
-            print(f"[INFO] #{problem.problem_id} {problem.title}")
-            print(f"[INFO] tier: {problem.tier}")
-            print(f"[INFO] samples: {len(problem.samples)}")
-
             testcase(problem)
 
     except KeyboardInterrupt:

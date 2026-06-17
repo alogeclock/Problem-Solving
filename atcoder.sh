@@ -1,47 +1,53 @@
 #!/bin/bash
+set -e
 
-# 인자가 입력되지 않았을 때 안내 메시지
-if [ -z "$1" ]; then
-  echo "사용법: ./make_contest.sh [대회이름]"
-  echo "예시: ./make_contest.sh abc300"
-  exit 1
+BASE="./atcoder"
+TPL="./template.cpp"
+CXX=${CXX:-g++}
+FLAGS="-std=c++17 -O2 -pipe -Wall -Wextra"
+
+check_oj() { command -v oj >/dev/null || { echo "[ERROR] Install oj: pip install online-judge-tools"; exit 1; }; }
+
+CMD=$1
+C_IN=$2
+P_IN=$3
+
+if [ "$CMD" = "-c" ] || [ "$CMD" = "--copy" ]; then
+    [ -z "$C_IN" ] && { echo "Usage: $0 -c <contest>"; exit 1; }
+    check_oj; [ ! -f "$TPL" ] && { echo "[ERROR] No $TPL"; exit 1; }
+
+    CDIR=$(echo "$C_IN" | tr '[:upper:]' '[:lower:]')
+    CID=$(echo "$CDIR" | sed 's/-//g')
+
+    for P in A B C D E F; do
+        p=$(echo "$P" | tr '[:upper:]' '[:lower:]')
+        DIR="$BASE/$CDIR/$P"
+        
+        mkdir -p "$DIR"
+        [ ! -f "$DIR/$P.cpp" ] && cp "$TPL" "$DIR/$P.cpp"
+        oj d "https://atcoder.jp/contests/$CID/tasks/${CID}_${p}" -d "$DIR/test" || true
+    done
+    echo "[OK] Setup complete: $CDIR"
+
+elif [ "$CMD" = "-t" ] || [ "$CMD" = "--testcase" ]; then
+    [ -z "$P_IN" ] && { echo "Usage: $0 -t <contest> <problem>"; exit 1; }
+    check_oj
+    
+    CDIR=$(echo "$C_IN" | tr '[:upper:]' '[:lower:]')
+    CID=$(echo "$CDIR" | sed 's/-//g')
+    P=$(echo "$P_IN" | tr '[:lower:]' '[:upper:]')
+    p=$(echo "$P" | tr '[:upper:]' '[:lower:]')
+    DIR="$BASE/$CDIR/$P"
+
+    [ ! -f "$DIR/$P.cpp" ] && { echo "[ERROR] No source file: $DIR/$P.cpp"; exit 1; }
+    [ ! -d "$DIR/test" ] && oj d "https://atcoder.jp/contests/$CID/tasks/${CID}_${p}" -d "$DIR/test"
+
+    echo "[BUILD] Compiling $P.cpp..."
+    "$CXX" $FLAGS "$DIR/$P.cpp" -o "$DIR/$P"
+    
+    echo "[TEST] Running tests..."
+    oj t -c "$DIR/$P" -d "$DIR/test"
+
+else
+    echo "Usage: $0 -c <contest> | $0 -t <contest> <problem>"
 fi
-
-# 1. 입력받은 이름 그대로 소문자화 (폴더명용: abc-453)
-CONTEST_DIR_NAME=$(echo "$1" | tr '[:upper:]' '[:lower:]')
-
-# 2. 하이픈 제거 버전 생성 (AtCoder URL용: abc453)
-CONTEST_ID=$(echo "$CONTEST_DIR_NAME" | sed 's/-//g')
-
-# 경로 설정
-BASE_DIR="./atcoder"
-TEMPLATE_FILE="./template.cpp"
-CONTEST_PATH="$BASE_DIR/$CONTEST_DIR_NAME"
-
-# template.cpp 파일이 있는지 확인
-if [ ! -f "$TEMPLATE_FILE" ]; then
-  echo "Error: '$TEMPLATE_FILE' 파일이 없습니다. 템플릿을 먼저 만들어주세요."
-  exit 1
-fi
-
-# A번부터 F번까지 각 폴더 생성 및 데이터 다운로드
-for problem in A B C D E F; do
-  PROBLEM_DIR="$CONTEST_PATH/$problem"
-  
-  # 각 폴더 생성 후 템플릿 파일 복사
-  mkdir -p "$PROBLEM_DIR"
-  TARGET_FILE="$PROBLEM_DIR/$problem.cpp"
-  cp "$TEMPLATE_FILE" "$TARGET_FILE"
-  
-  # 3. oj-tools를 이용한 테스트 케이스 다운로드
-  PROBLEM_URL="https://atcoder.jp/contests/${CONTEST_ID}/tasks/${CONTEST_ID}_${problem}"
-  
-  echo "--------------------------------------------------"
-  echo "Downloading: $problem ($PROBLEM_URL)"
-  
-  # 해당 문제 폴더 내부의 test 폴더에 다운로드
-  oj download "$PROBLEM_URL" -d "$PROBLEM_DIR/test"
-done
-
-echo "--------------------------------------------------"
-echo "SUCCESS: '$CONTEST_PATH' 세팅 및 테스트 케이스 다운로드가 완료되었습니다!"

@@ -11,3 +11,4 @@ out
 main
 /*.cpp
 /*.exe
+*.testcase

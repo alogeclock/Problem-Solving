@@ -9,6 +9,7 @@ ColumnLimit: 0
 IndentWidth: 4
 TabWidth: 4
 UseTab: Never
+NamespaceIndentation: All
 
 # 중괄호 설정 (Allman 스타일)
 BreakBeforeBraces: Allman
@@ -17,7 +18,7 @@ Cpp11BracedListStyle: false # 중괄호 앞뒤로 한 칸 띄우기 ex. { 1, 2, 
 # 들여쓰기 세부 제어
 AllowShortFunctionsOnASingleLine: Inline # Getter/Setter를 한 줄로 허용
 AllowShortBlocksOnASingleLine: false
-AllowShortIfStatementsOnASingleLine: false
+AllowShortIfStatementsOnASingleLine: true
 AllowShortLoopsOnASingleLine: false
 
 # 빈 줄 및 공백 설정
@@ -33,7 +34,7 @@ AlignConsecutiveDeclarations: false
 AlignEscapedNewlines: Right
 AlignTrailingComments: true
 
-# 인클루드 설정 (요청 사항)
+# 인클루드 설정
 SortIncludes: false
 IncludeBlocks: Preserve # 원래 작성한 순서와 그룹을 최대한 보존
 
